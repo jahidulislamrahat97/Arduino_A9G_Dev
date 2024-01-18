@@ -4,7 +4,7 @@
 HardwareSerial A9G(2);
 GSM gsm(A9G, 1);
 
-const int gsm_pin = 21;
+const int gsm_pin = 15;
 
 unsigned long tic = millis();
 int counter = 0;
@@ -24,7 +24,7 @@ void eventDispatch(A9G_Event_t *event)
   case EVENT_MQTTPUBLISH:
     Serial.print("Topic: ");
     Serial.println(event->topic);
-    Serial.printf("**message: %s**\n",event->message);
+    Serial.printf("**message: %s**\n", event->message);
     execute_command(event->message);
     break;
 
@@ -35,27 +35,37 @@ void eventDispatch(A9G_Event_t *event)
     Serial.println(event->message);
     Serial.print("Date & Time: ");
     Serial.println(event->date_time);
-    strcpy(buffer,event->message);
-    gsm.DeleteMessage(1,ALL_MESSAGE);
+    strcpy(buffer, event->message);
+    gsm.DeleteMessage(1, ALL_MESSAGE);
     delay(100);
     execute_command(buffer);
     break;
   case EVENT_CSQ:
-    Serial.print("CSQ: ");
+    Serial.print("CSQ rssi: ");
     Serial.println(event->param1);
     break;
+
+  case EVENT_IMEI:
+    Serial.print("IMEI: ");
+    Serial.println(event->param2);
+    break;
+
+  case EVENT_CCID:
+    Serial.print("CCID: ");
+    Serial.println(event->param2);
+    break;
+
+
 
   case EVENT_CME:
     Serial.print("CME ERROR Message:");
     gsm.errorPrintCME(event->error);
     break;
-  
+
   case EVENT_CMS:
     Serial.print("CMS ERROR Message:");
     gsm.errorPrintCMS(event->error);
     break;
-  
-
 
   default:
     break;
@@ -66,9 +76,9 @@ void setup()
 {
   Serial.begin(115200);
   pinMode(gsm_pin, OUTPUT);
-  digitalWrite(gsm_pin, LOW);
-  delay(4000);
   digitalWrite(gsm_pin, HIGH);
+  delay(4000);
+  digitalWrite(gsm_pin, LOW);
   delay(2000);
 
   gsm.init(115200);
@@ -107,77 +117,80 @@ void setup()
     delay(3000);
   }
 
+  delay(3000);
+  Serial.println("***********Read CSQ ***********");
+  gsm.ReadCSQ();
 
-  // delay(3000);
-  // Serial.println("***********Read CSQ ***********");
-  // gsm.ReadCSQ();
+  delay(3000);
+  Serial.println("***********Read IMEI ***********");
+  gsm.ReadIMEI();
 
-  // delay(3000);
-  // Serial.println("***********Read IMEI ***********");
-  // gsm.ReadIMEI();
-
-
-
-  // SMS function
-  while (!gsm.ActivateTE())
-  {
-    Serial.println("retry : ActivateTE !");
     delay(3000);
-  }
-
-  while (!gsm.SetFormatReading(1))
-  {
-    Serial.println("retry : SetFormatReading !");
-    delay(3000);
-  }
-
-  while (!gsm.SetMessageStorageUnit())
-  {
-    Serial.println("retry : SetMessageStorageUnit !");
-    delay(3000);
-  }
+  Serial.println("***********Read IMEI ***********");
+  gsm.ReadCCID();
 
 
-  gsm.DeleteMessage(1,ALL_MESSAGE);
+
+
+  // // SMS function
+  // while (!gsm.ActivateTE())
+  // {
+  //   Serial.println("retry : ActivateTE !");
+  //   delay(3000);
+  // }
+
+  // while (!gsm.SetFormatReading(1))
+  // {
+  //   Serial.println("retry : SetFormatReading !");
+  //   delay(3000);
+  // }
+
+  // while (!gsm.SetMessageStorageUnit())
+  // {
+  //   Serial.println("retry : SetMessageStorageUnit !");
+  //   delay(3000);
+  // }
+
+  // gsm.DeleteMessage(1, ALL_MESSAGE);
 
   // gsm.ReadMessage(16);
   // gsm.CheckMessageStorageUnit();
 
-  if(gsm.SendMessage("01687223094","Hello from A9G")){
-    Serial.println("SMS Send Success");
-  }
-  else{
-    Serial.println("SMS Send Failed");
-  }
-
-
+  // if (gsm.SendMessage("01687223094", "Hello from A9G"))
+  // {
+  //   Serial.println("SMS Send Success");
+  // }
+  // else
+  // {
+  //   Serial.println("SMS Send Failed");
+  // }
 
   // mqtt connection
-  while (!gsm.DisconnectBroker())
-  {
-    delay(1000);
-  }
+  // while (!gsm.DisconnectBroker())
+  // {
+  //   delay(1000);
+  // }
 
-  while (!gsm.ConnectToBroker("broker.hivemq.com", 1883, "akjkkjckad", 120, 0))
-  // while (!gsm.ConnectToBroker("broker.hivemq.com", 1883))
-  {
-    delay(1000);
-  }
+  // while (!gsm.ConnectToBroker("broker.hivemq.com", 1883, "akjkkjckad", 120, 0))
+  // // while (!gsm.ConnectToBroker("broker.hivemq.com", 1883))
+  // {
+  //   delay(1000);
+  // }
 
-  while (!gsm.SubscribeToTopic("DMA/SUB", 1, 0))
-  {
-    delay(1000);
-  }
+  // while (!gsm.SubscribeToTopic("DMA/SUB", 1, 0))
+  // {
+  //   delay(1000);
+  // }
 
-  // publish start message
-  if (gsm.PublishToTopic("DMA/PUB", "Started"))
-  {
-    Serial.println("started message send success");
-  }
-  else
-  {
-    Serial.println("started message send fail");
-  }
+  // // publish start message
+  // if (gsm.PublishToTopic("DMA/PUB", "Started"))
+  // {
+  //   Serial.println("started message send success");
+  // }
+  // else
+  // {
+  //   Serial.println("started message send fail");
+  // }
 }
 
 void loop()
@@ -189,12 +202,14 @@ void loop()
     counter++;
     sprintf(data, "Hello%d", counter);
 
-    if(gsm.SendMessage("01687223094","Hello from A9G")){
-      Serial.println("SMS Send Success");
-    }
-    else{
-      Serial.println("SMS Send Failed");
-    }
+    // if (gsm.SendMessage("01687223094", "Hello from A9G"))
+    // {
+    //   Serial.println("SMS Send Success");
+    // }
+    // else
+    // {
+    //   Serial.println("SMS Send Failed");
+    // }
     // if (gsm.PublishToTopic("DMA/PUB", data))
     // {
     //   Serial.println("message send success");
@@ -224,5 +239,4 @@ void execute_command(char *data)
     delay(4000);
     ESP.restart();
   }
-  
 }
